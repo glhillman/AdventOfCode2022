@@ -58,10 +58,6 @@ internal class DayClass
         foreach (string input in _input)
         {
             index++;
-            if (index == 170)
-            {
-                int foo = 0;
-            }
             string[] parts = input.Split(' ');
             switch (parts[0])
             {
