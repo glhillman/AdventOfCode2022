@@ -28,33 +28,44 @@ internal class DayClass
 
     public DayClass()
     {
+        LoadData();
+        _neighbors = CacheNeighbors(_heightMap);
     }
 
     public void Part1()
     {
-        LoadData();
-        _neighbors = CacheNeighbors(_heightMap);
-        DumpNeighbors();
-        Dictionary<Point, int> distance = new();
-        distance[_startPoint] = 0;
-        int pathDistance = Search(_startPoint, _targetPoint, distance);
+        int pathDistance = Search(_startPoint, _targetPoint);
 
         Console.WriteLine("Part1: {0}", pathDistance);
     }
 
     public void Part2()
     {
-        LoadData();
+        int minDistance = int.MaxValue;
 
-        long rslt = 0;
-
-        Console.WriteLine("Part2: {0}", rslt);
+        for (int r = 0; r < _NRows; r++)
+        {
+            for (int c = 0; c < _NCols; c++)
+            {
+                if (_heightMap[c,r] == 'a')
+                {
+                    int dist = Search(new Point(c, r), _targetPoint);
+                    if (dist > 0)
+                    {
+                        minDistance = Math.Min(minDistance, dist);
+                    }
+                }
+            }
+        }
+        Console.WriteLine("Part2: {0}", minDistance);
     }
 
-    public int Search(Point start, Point target, Dictionary<Point, int> distance)
+    public int Search(Point start, Point target)
     {
         HashSet<Point> visited = new();
         Queue<Point> queue = new();
+        Dictionary<Point, int> distance = new();
+        distance[start] = 0;
 
         queue.Enqueue(start);
 
@@ -84,19 +95,6 @@ internal class DayClass
         return 0;
     }
 
-    private void DumpNeighbors()
-    {
-        for (int row = 0; row < _NRows; row++)
-        {
-            for (int col = 0; col < _NCols; col++)
-            {
-                Point p = new Point(col, row);
-                Console.Write(_neighbors[p].Count);
-                Console.Write(" ");
-            }
-            Console.WriteLine();
-        }
-    }
     public Dictionary<Point, List<Point>> CacheNeighbors(char[,] grid)
     {
         Dictionary<Point, List<Point>> allNeighbors = new();
@@ -106,33 +104,18 @@ internal class DayClass
             {
                 List<Point> neighbors;
 
-                if (grid[col, row] == 'S')
-                {
-                    neighbors = FindValidNeighbors(grid, col, row, 'a');
-                    _startPoint = new Point(col, row);
-                }
-                else if (grid[col, row] == 'E')
-                {
-                    neighbors = FindValidNeighbors(grid, col, row, 'z');
-                    _targetPoint = new Point(col, row);
-                }
-                else
-                {
-                    neighbors = FindValidNeighbors(grid, col, row, null);
-                }
+                neighbors = FindValidNeighbors(grid, col, row);
                 allNeighbors[new Point(col, row)] = neighbors;
             }
         }
         return allNeighbors;
     }
 
-    private List<Point> FindValidNeighbors(char[,] graph, int col, int row, char? anchorHeight)
+    private List<Point> FindValidNeighbors(char[,] graph, int col, int row)
     {
         List<Point> neighbors = new();
-        if (anchorHeight == null)
-        {
-            anchorHeight = graph[col, row];
-        }
+        char anchorHeight = graph[col, row];
+
         // check up, down, left, right for valid neighbor (no more than existing height + 1
         if (row > 0 && graph[col, row - 1] <= anchorHeight + 1) // up
         {
@@ -155,7 +138,7 @@ internal class DayClass
     }
     private void LoadData()
     {
-        string inputFile = AppDomain.CurrentDomain.BaseDirectory + @"..\..\..\test.txt";
+        string inputFile = AppDomain.CurrentDomain.BaseDirectory + @"..\..\..\input.txt";
 
         if (File.Exists(inputFile))
         {
@@ -169,7 +152,18 @@ internal class DayClass
             {
                 for (int c = 0; c < _NCols; c++)
                 {
-                    _heightMap[c, r] = lines[r][c];
+                    char h = lines[r][c];
+                    if (h == 'S')
+                    {
+                        _startPoint = new Point(c, r);
+                        h = 'a';
+                    }
+                    else if (h == 'E')
+                    {
+                        _targetPoint = new Point(c, r);
+                        h = 'z';
+                    }
+                    _heightMap[c, r] = h;
                 }
             }
             
