@@ -93,7 +93,7 @@ internal class DayClass
             shape.Drop(chamber);
             if (shape.Settled)
             {
-                chamber.StoreMaxColls(rocks, _previousPatternIndex);
+                chamber.StoreSettledShape(rocks, _previousPatternIndex);
                 if (chamber.Tops.Count > 0)
                 {
                     var last = chamber.Tops.Last().Value;
@@ -204,7 +204,7 @@ internal class DayClass
 
     private void LoadData()
     {
-        string inputFile = AppDomain.CurrentDomain.BaseDirectory + @"..\..\..\input.txt";
+        string inputFile = AppDomain.CurrentDomain.BaseDirectory + @"..\..\..\test.txt";
 
         if (File.Exists(inputFile))
         {

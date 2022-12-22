@@ -53,48 +53,55 @@ namespace Day17
             }
         }
 
-        public void StoreMaxColls(int nthRock, int moveIndex)
+        public void StoreSettledShape(int nthRock, int moveIndex)
         {
-            StringBuilder sb = new StringBuilder();
+            string key = Rows[HighestRow - 1].Row.ToString() + moveIndex.ToString();
+            if (Tops.ContainsKey(key) == false)
+            {
+                Tops[key] = new List<(int, int)>();
+            }
+            Tops[key].Add((nthRock, Rows.Count - 1));
+            //StringBuilder sb = new StringBuilder();
 
-            byte mask = 0;
-            int range = Rows.Count;
-            while (range > 0 && mask != 0b1111111)
-            {
-                range--;
-                mask |= Rows[range].Row;
-            }
-            if (mask == 0b1111111)
-            {
-                int[] tops = new int[7];
-                int index = Rows.Count - 1;
-                while (index >= range)
-                {
-                    byte bit = 0b1000000;
-                    for (int col = 0; col < 7; col++)
-                    {
-                        if (tops[col] == 0 && (Rows[index].Row & bit) != 0)
-                        {
-                            tops[col] = index;
-                        }
-                        bit >>= 1;
-                    }
-                    index--;
-                }
-                int minTop = tops.Min();
+            //byte mask = 0;
+            //int range = Rows.Count;
+            //while (range > 0 && mask != 0b1111111)
+            //{
+            //    range--;
+            //    mask |= Rows[range].Row;
+            //}
+            //if (mask == 0b1111111)
+            //{
+            //    int[] tops = new int[7];
+            //    int index = Rows.Count - 1;
+            //    while (index >= range)
+            //    {
+            //        byte bit = 0b1000000;
+            //        for (int col = 0; col < 7; col++)
+            //        {
+            //            if (tops[col] == 0 && (Rows[index].Row & bit) != 0)
+            //            {
+            //                tops[col] = index;
+            //            }
+            //            bit >>= 1;
+            //        }
+            //        index--;
+            //    }
+            //    int minTop = tops.Min();
                 
-                for (int i = 0; i < 7; i++)
-                {
-                    sb.Append(tops[i] - minTop);
-                }
-                sb.Append(moveIndex);
-                string key = sb.ToString();
-                if (Tops.ContainsKey(key) == false)
-                {
-                    Tops[key] = new List<(int, int)>();
-                }
-                Tops[key].Add((nthRock, Rows.Count - 1));
-            }
+            //    for (int i = 0; i < 7; i++)
+            //    {
+            //        sb.Append(tops[i] - minTop);
+            //    }
+            //    sb.Append(moveIndex);
+            //    string key = sb.ToString();
+            //    key = Rows[HighestRow-1].Row.ToString() + moveIndex.ToString();
+            //    if (Tops.ContainsKey(key) == false)
+            //    {
+            //        Tops[key] = new List<(int, int)>();
+            //    }
+            //    Tops[key].Add((nthRock, Rows.Count - 1));
+            //}
         }
     }
 }
