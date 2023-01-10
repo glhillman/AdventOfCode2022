@@ -1,7 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Collections.Immutable;
+using System.ComponentModel;
 using System.Data;
 using System.Reflection.Metadata.Ecma335;
+using static DayClass;
 
 DayClass day = new DayClass();
 
@@ -18,10 +20,15 @@ Console.ReadLine();
 
 public class DayClass
 {
+    const int UP = 1;
+    const int DOWN = 2;
+    const int LEFT = 4;
+    const int RIGHT = 8;
+
     public record Boundary(int minRow, int maxRow, int minCol, int maxCol);
     public Boundary _boundary;
-    public List<Blizzard> _blizzardsAtStart = new();
-    public Dictionary<int, List<Blizzard>> _blizzardStates = new();
+    //public List<Blizzard> _blizzardsAtStart = new();
+    public Dictionary<int, Dictionary<Pos, int>> _blizzardStates = new();
     public int _lcm = 0;
     public Pos _start = new Pos(0, 0);
     public Pos _finish = new Pos(0, 0);
@@ -30,7 +37,7 @@ public class DayClass
      public DayClass()
     {
          LoadData();
-        //DumpBlizzards(0);
+        //DumpBlizzards(12);
     }
 
     public void Part1And2()
@@ -51,12 +58,12 @@ public class DayClass
     {
         Step.target = finish; // set as static field of Step - used each time Pos is created
         Step checkStep = new Step(start, minute);
-        Queue<Step> activeSteps = new(); 
+        PriorityQueue<Step, int> activeSteps = new(); 
         HashSet<Step> visited = new();
 
-        activeSteps.Enqueue(checkStep);
+        activeSteps.Enqueue(checkStep, checkStep.Distance);
 
-        while (activeSteps.Any())
+        while (activeSteps.Count > 0) //Any())
         {
             checkStep = activeSteps.Dequeue();
 
@@ -77,7 +84,7 @@ public class DayClass
 
             foreach (Step neighborStep in openNeighbors)
             {
-                activeSteps.Enqueue(neighborStep);
+                activeSteps.Enqueue(neighborStep, neighborStep.Distance);
             }
         }
 
@@ -88,14 +95,22 @@ public class DayClass
     {
         string[] lines = File.ReadAllLines(AppDomain.CurrentDomain.BaseDirectory + @"..\..\..\input.txt");
         _boundary = new Boundary(1, lines.Length - 2, 1, lines[0].Length - 2);
-        List<Blizzard> currentState = new();
+        Dictionary<Pos, int> currentState = new();
         for (int row = _boundary.minRow; row <= _boundary.maxRow; row++)
         {
             for (int col = _boundary.minCol; col <= _boundary.maxCol; col++)
             {
-                if (lines[row][col] != '.')
+                int bliz = 0;
+                switch (lines[row][col])
                 {
-                   currentState.Add(new Blizzard(lines[row][col], new TimePos(0, new Pos(row, col))));
+                    case '^': bliz = UP; break;
+                    case 'v': bliz = DOWN; break;
+                    case '>': bliz = RIGHT; break;
+                    case '<': bliz = LEFT; break;
+                }
+                if (bliz != 0)
+                {
+                    currentState[new Pos(row, col)] = bliz;
                 }
             }
         }
@@ -104,13 +119,29 @@ public class DayClass
         _lcm = CalcLCM(_boundary.maxRow, _boundary.maxCol);
         _blizzardStates[0] = currentState;
         //DumpBlizzards(0);
+        int[] directions = new int[] {UP, DOWN, LEFT, RIGHT};
         // cache all blizzard states by minute
         for (int minute = 1; minute < _lcm; minute++)
         {
-            List<Blizzard> newState = new();
-            for (int bliz = 0; bliz < currentState.Count; bliz++)
+            Dictionary<Pos, int> newState = new();
+            foreach (KeyValuePair<Pos, int> bliz in currentState)
             {
-                newState.Add(currentState[bliz].Move(_boundary));
+                for (int dir = 0; dir < 4; dir++)
+                {
+                    int mask = bliz.Value & directions[dir];
+                    if (mask != 0)
+                    {
+                        Pos newPos = MoveBlizzard(bliz.Key, mask, _boundary);
+                        if (newState.ContainsKey(newPos))
+                        {
+                            newState[newPos] |= mask;
+                        }
+                        else
+                        {
+                            newState[newPos] = mask;
+                        }
+                    }
+                }
             }
             _blizzardStates[minute] = newState;
             //DumpBlizzards(minute);
@@ -118,13 +149,42 @@ public class DayClass
         }
     }
 
-    public record Pos(int row, int col)
+    private Pos MoveBlizzard(Pos curPos, int mask, Boundary boundary)
     {
-        public Pos MoveTo(int row, int col)
+        Pos newPos;
+
+        int temp;
+        if ((mask & RIGHT) == RIGHT)
         {
-            return new Pos(row, col);
+            temp = curPos.col + 1;
+            temp = temp > boundary.maxCol ? boundary.minCol : temp;
+            newPos = new Pos(curPos.row, temp);
+        }
+        else if ((mask & LEFT) == LEFT)
+        {
+            temp = curPos.col - 1;
+            temp = temp < boundary.minCol ? boundary.maxCol : temp;
+            newPos = new Pos(curPos.row, temp);
+        }
+        else if ((mask & UP) == UP)
+        {
+            temp = curPos.row - 1;
+            temp = temp < boundary.minRow ? boundary.maxRow : temp;
+            newPos = new Pos(temp, curPos.col);
+        }
+        else // mask == DOWN)
+        {
+            temp = curPos.row + 1;
+            temp = temp > boundary.maxRow ? boundary.minRow : temp;
+            newPos = new Pos(temp, curPos.col);
         }
 
+        return newPos;
+    }
+
+
+    public record Pos(int row, int col)
+    {
         public Pos AddDelta(int rowDelta, int colDelta)
         {
             return new Pos(row + rowDelta, col + colDelta);
@@ -138,48 +198,12 @@ public class DayClass
 
     public record TimePos(int time, Pos pos)
     {
-        public TimePos MoveTo(Pos newPos)
-        {
-            return new TimePos(time + 1, pos.MoveTo(newPos.row, newPos.col));
-        }
-
         public override string ToString()
         {
             return string.Format("time: {0}, {1}", time, pos);
         }
     }
 
-    public record Blizzard(char direction, TimePos timePos)
-    {
-        public Blizzard Move(Boundary boundary)
-        {
-            int temp;
-
-            switch (direction)
-            {
-                case '>':
-                    temp = timePos.pos.col + 1;
-                    temp = temp > boundary.maxCol ? boundary.minCol : temp;
-                    return new Blizzard(direction, timePos.MoveTo(timePos.pos.MoveTo(timePos.pos.row, temp)));
-                case '<':
-                    temp = timePos.pos.col - 1;
-                    temp = temp < boundary.minCol ? boundary.maxCol : temp;
-                    return new Blizzard(direction, timePos.MoveTo(timePos.pos.MoveTo(timePos.pos.row, temp)));
-                case '^':
-                    temp = timePos.pos.row - 1;
-                    temp = temp < boundary.minRow ? boundary.maxRow : temp;
-                    return new Blizzard(direction, timePos.MoveTo(timePos.pos.MoveTo(temp, timePos.pos.col)));
-                default: // case 'v':
-                    temp = timePos.pos.row + 1;
-                    temp = temp > boundary.maxRow ? boundary.minRow : temp;
-                    return new Blizzard(direction, timePos.MoveTo(timePos.pos.MoveTo(temp, timePos.pos.col)));
-            }
-        }
-        public override string ToString()
-        {
-            return string.Format("direction: {0}, {1}", direction, timePos);
-        }
-    }
     public class Step
     {
         public static Pos target = new Pos(0, 0);
@@ -188,10 +212,8 @@ public class DayClass
         {
             Pos = pos;
             Minute = minute;
-            Distance = Math.Abs(target.row - Pos.row) + Math.Abs(target.col - Pos.col);
-            TPos = new TimePos(minute, pos);
+            Distance = Math.Abs(target.row - Pos.row) + Math.Abs(target.col - Pos.col) + minute;
         }
-        public TimePos TPos { get; set; }
         public Pos Pos { get; set; }
         public int Minute { get; set; }
         public int Distance { get; set; }
@@ -216,7 +238,7 @@ public class DayClass
     {
         int minute = step.Minute + 1;
         List<Step> openNeighbors = new();
-        List<Blizzard> blizzards = _blizzardStates[minute % _lcm];
+        Dictionary<Pos, int> blizzards = _blizzardStates[minute % _lcm];
 
         Pos neighborPos = step.Pos.AddDelta(-1, 0); // above
         if (OpenNeighbor(blizzards, neighborPos, start, finish))
@@ -250,19 +272,20 @@ public class DayClass
         return openNeighbors;
     }
 
-    private bool OpenNeighbor(List<Blizzard> blizzards, Pos pos, Pos start, Pos finish)
+    private bool OpenNeighbor(Dictionary<Pos, int> blizzards, Pos pos, Pos start, Pos finish)
     {
         bool openNeighbor = false;
-        if (blizzards.FirstOrDefault(b => b.timePos.pos == pos) == null)
+        if (blizzards.ContainsKey(pos) == false)
         {
-            openNeighbor = (pos == finish) || (pos == start) || (pos.row >= _boundary.minRow && pos.row <= _boundary.maxRow && pos.col >= _boundary.minCol && pos.col <= _boundary.maxCol);
+            openNeighbor = (pos == finish) || (pos == start) || 
+                           (pos.row >= _boundary.minRow && pos.row <= _boundary.maxRow && pos.col >= _boundary.minCol && pos.col <= _boundary.maxCol);
         }
         return openNeighbor;
     }
 
     private void DumpBlizzards(int minute)
     {
-        List<Blizzard> state = _blizzardStates[minute % _lcm];
+        Dictionary<Pos, int> state = _blizzardStates[minute % _lcm];
         Console.WriteLine("Minute: {0}", minute);
         for (int col = _boundary.minCol - 1; col <= _boundary.maxCol + 1; col++)
         {
@@ -274,11 +297,35 @@ public class DayClass
             Console.Write('#');
             for (int col = _boundary.minCol; col <= _boundary.maxCol; col++)
             {
-                var blizzards = state.Where(b => b.timePos.pos.row == row && b.timePos.pos.col == col);
-                int count = blizzards.Count();
+                int mask;
+                int count = 0;
+                if (state.TryGetValue(new Pos(row, col), out mask))
+                {
+                    // count the blizzards at this location
+                    int tempMask = mask;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        count += (tempMask & 1);
+                        tempMask >>= 1;
+                    }
+                }
                 if (count > 0)
                 {
-                    char c = count > 1 ? (char)('0' + count) : blizzards.First().direction;
+                    char c = '?';
+                    if (count > 1)
+                    {
+                        c = (char)('0' + count);
+                    }
+                    else
+                    {
+                        switch (mask)
+                        {
+                            case UP: c = '^'; break;
+                            case DOWN: c = 'v'; break;
+                            case LEFT: c = '<'; break;
+                            case RIGHT: c = '>'; break;
+                        }
+                    }
                     Console.Write(c);
                 }
                 else
@@ -300,7 +347,7 @@ public class DayClass
     public int CalcLCM(int a, int b) //method for finding LCM with parameters a and b
     {
         int num1;
-        int num2;                         //taking input from user by using num1 and num2 variables
+        int num2;
         if (a > b)
         {
             num1 = a;
