@@ -73,12 +73,10 @@ public class DayClass
                 return checkStep; // destination!
             }
 
-            if (visited.Contains(checkStep))
+            if (visited.Add(checkStep) == false)
             {
                 continue;
             }
-
-            visited.Add(checkStep);
 
             List<Step> openNeighbors = OpenNeighbors(checkStep, start, finish);
 
